@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: bbe-msa-bs-account-movement
+  # Evita que el contexto de test intente crear la ConnectionFactory
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration
+
+logging:
+  level:
+    org.springframework: WARN

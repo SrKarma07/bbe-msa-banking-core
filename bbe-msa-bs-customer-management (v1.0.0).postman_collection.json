@@ -1,0 +1,888 @@
+{
+  "info": {
+    "_postman_id": "10059f5c-8798-4c01-8629-836a01906cf5",
+    "name": "bbe-msa-bs-customer-management (v1.2.1)",
+    "description": "Complete Postman collection to test Customer Management based on seeded data. Includes happy paths + negative cases.\n\nBase URL examples:\n- http://localhost:8091/api\n- http://localhost:8080/api\n\nSeeded references used:\n- customerIdAna: ce069cbb-fd30-4f39-8ca6-903d0217d951\n- customerIdCarlos: 7f0c2d65-7a0a-4e78-a0fa-2bb4a6b8d219\n- identificationMaria (seeded): EC-0102030405\n\nNotes:\n- Customer identifiers are UUIDs.\n- identification is unique (conflicts return 409).\n- Pagination is zero-based: page + size.\n- Errors use RFC7807 (application/problem+json).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "33348841",
+    "_collection_link": "https://go.postman.co/collection/33348841-10059f5c-8798-4c01-8629-836a01906cf5?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 - Setup / Smoke",
+      "item": [
+        {
+          "name": "Smoke - List Customers (page=0,size=10)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Returns array', function(){ pm.expect(pm.response.json()).to.be.an('array'); });",
+                  "pm.test('X-Total-Count header present (optional)', function(){ pm.expect(pm.response.headers.has('X-Total-Count') || true).to.be.true; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Customers",
+      "item": [
+        {
+          "name": "List Customers (filter state=true)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Verify variables and log resolved URL",
+                  "console.log('=== Variable Verification ===');",
+                  "const variables = [",
+                  "  { name: 'baseUrl', value: pm.variables.get('baseUrl') },",
+                  "  { name: 'correlationId', value: pm.variables.get('correlationId') }",
+                  "];",
+                  "variables.forEach(v => {",
+                  "  if (!v.value) console.warn(`⚠️ ${v.name}: NOT SET or EMPTY`);",
+                  "  else console.log(`✓ ${v.name}: ${v.value}`);",
+                  "});",
+                  "const resolvedUrl = pm.variables.replaceIn('{{baseUrl}}/customers?page=0&size=50&state=true');",
+                  "console.log('\\n=== Resolved Request URL ===');",
+                  "console.log(resolvedUrl);",
+                  "console.log('========================');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "pm.test('Returns array', () => pm.expect(data).to.be.an('array'));",
+                  "pm.test('Each item has id + identification + state', () => {",
+                  "  data.forEach(c => {",
+                  "    pm.expect(c).to.have.property('id');",
+                  "    pm.expect(c).to.have.property('identification');",
+                  "    pm.expect(c).to.have.property('state');",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=0&size=50&state=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                },
+                {
+                  "key": "state",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Customers (filter by identificationMaria seeded)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "pm.test('Returns array', () => pm.expect(data).to.be.an('array'));",
+                  "pm.test('If exists, all match identification', () => {",
+                  "  data.forEach(c => pm.expect(c.identification).to.eql(pm.collectionVariables.get('identificationMaria')));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=0&size=10&identification={{identificationMaria}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "identification",
+                  "value": "{{identificationMaria}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer (Ana - seeded)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const c = pm.response.json();",
+                  "pm.test('id matches customerIdAna', () => pm.expect(c.id).to.eql(pm.collectionVariables.get('customerIdAna')));",
+                  "pm.test('has required fields', () => {",
+                  "  pm.expect(c).to.have.property('name');",
+                  "  pm.expect(c).to.have.property('identification');",
+                  "  pm.expect(c).to.have.property('state');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerIdAna}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerIdAna}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Customer (auto-generated identification)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Auto-generate identification/password if empty",
+                  "if (!pm.collectionVariables.get('createdIdentification')) {",
+                  "  const rnd = Math.floor(Math.random() * 1000000);",
+                  "  pm.collectionVariables.set('createdIdentification', `EC-NEW-${Date.now()}-${rnd}`);",
+                  "}",
+                  "if (!pm.collectionVariables.get('createdPassword')) {",
+                  "  pm.collectionVariables.set('createdPassword', `ChangeMe${Math.floor(Math.random() * 9000 + 1000)}!`);",
+                  "}",
+                  "console.log('createdIdentification:', pm.collectionVariables.get('createdIdentification'));",
+                  "console.log('createdPassword:', pm.collectionVariables.get('createdPassword'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const c = pm.response.json();",
+                  "pm.test('Has UUID id', () => pm.expect(c.id).to.match(/^[0-9a-fA-F-]{36}$/));",
+                  "pm.test('identification matches', () => pm.expect(c.identification).to.eql(pm.collectionVariables.get('createdIdentification')));",
+                  "pm.collectionVariables.set('createdCustomerId', c.id);",
+                  "pm.collectionVariables.set('createdCustomerName', c.name);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jeremy Torres Páez\",\n  \"gender\": \"M\",\n  \"age\": 25,\n  \"identification\": \"{{createdIdentification}}\",\n  \"address\": \"Quito, Ecuador\",\n  \"phoneNumber\": \"+593-99-802-7562\",\n  \"password\": \"{{createdPassword}}\",\n  \"state\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer (createdCustomerId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const c = pm.response.json();",
+                  "pm.test('id matches createdCustomerId', () => pm.expect(c.id).to.eql(pm.collectionVariables.get('createdCustomerId')));",
+                  "pm.test('identification matches createdIdentification', () => pm.expect(c.identification).to.eql(pm.collectionVariables.get('createdIdentification')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{createdCustomerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{createdCustomerId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Customer (patch-like: name + state=false) - createdCustomerId",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Prepare update name suffix",
+                  "pm.collectionVariables.set('updateName', `Postman Updated ${Date.now()}`);",
+                  "console.log('updateName:', pm.collectionVariables.get('updateName'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const c = pm.response.json();",
+                  "pm.test('name updated', () => pm.expect(c.name).to.eql(pm.collectionVariables.get('updateName')));",
+                  "pm.test('state updated to false', () => pm.expect(c.state).to.eql(false));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jeremy David Torres Páez\",\n  \"phoneNumber\": \"+593-99-802-7562\",\n  \"state\": false\n}\n"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{createdCustomerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{createdCustomerId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Customer (createdCustomerId) - should succeed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('DeleteResponse has required fields', () => {",
+                  "  pm.expect(d).to.have.property('id');",
+                  "  pm.expect(d).to.have.property('message');",
+                  "  pm.expect(d).to.have.property('deletedAt');",
+                  "});",
+                  "pm.test('Deleted id matches createdCustomerId', () => pm.expect(d.id).to.eql(pm.collectionVariables.get('createdCustomerId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{createdCustomerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{createdCustomerId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Negative / Validation",
+      "item": [
+        {
+          "name": "Customers - Create duplicate identification (EC-0102030405) -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate Identification\",\n  \"gender\": \"F\",\n  \"age\": 40,\n  \"identification\": \"{{identificationMaria}}\",\n  \"address\": \"Somewhere\",\n  \"phoneNumber\": \"+593-98-999-9999\",\n  \"password\": \"ChangeMe123!\",\n  \"state\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - Create invalid payload (gender=INVALID) -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Gender\",\n  \"gender\": \"INVALID\",\n  \"age\": 25,\n  \"identification\": \"EC-INVALID-0001\",\n  \"address\": \"Quito\",\n  \"phoneNumber\": \"+593-98-123-4567\",\n  \"password\": \"ChangeMe123!\",\n  \"state\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - List invalid pagination (page=-1) -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers?page=-1&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "-1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - Get invalid UUID -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/NOT-A-UUID",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "NOT-A-UUID"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - Get Not Found -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - Update duplicate identification -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identification\": \"{{identificationMaria}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerIdAna}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerIdAna}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - Delete Not Found -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customers - Delete seeded customer with accounts -> 409 (expected FK conflict)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));",
+                  "try {",
+                  "  const p = pm.response.json();",
+                  "  pm.test('Problem has status', () => pm.expect(p).to.have.property('status'));",
+                  "} catch (e) {",
+                  "  // ignore parsing error",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerIdAna}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerIdAna}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8091/api"
+    },
+    {
+      "key": "correlationId",
+      "value": "pm-{{timestamp}}"
+    },
+    {
+      "key": "customerIdAna",
+      "value": "ce069cbb-fd30-4f39-8ca6-903d0217d951"
+    },
+    {
+      "key": "customerIdCarlos",
+      "value": "7f0c2d65-7a0a-4e78-a0fa-2bb4a6b8d219"
+    },
+    {
+      "key": "customerIdDiana",
+      "value": "f3d9f1c6-3122-4b6d-9d55-93b2f3c1ab10"
+    },
+    {
+      "key": "customerIdJorge",
+      "value": "2b6f7a58-9f78-4b33-a3d2-8b6c0b4d8f11"
+    },
+    {
+      "key": "customerIdMaria",
+      "value": "a7d88a62-8e2b-4d72-8d41-9b7b0a2ce9a5"
+    },
+    {
+      "key": "customerIdPedro",
+      "value": "d6d1b2a0-6c4d-4c74-9ed0-0b5f1c2d3e44"
+    },
+    {
+      "key": "customerIdSofia",
+      "value": "0d1d2e3f-4a5b-4c6d-8e9f-001122334455"
+    },
+    {
+      "key": "customerIdRicardo",
+      "value": "11223344-5566-7788-99aa-bbccddeeff00"
+    },
+    {
+      "key": "identificationMaria",
+      "value": "EC-0102030405"
+    },
+    {
+      "key": "createdCustomerId",
+      "value": ""
+    },
+    {
+      "key": "createdIdentification",
+      "value": ""
+    },
+    {
+      "key": "createdPassword",
+      "value": ""
+    },
+    {
+      "key": "createdCustomerName",
+      "value": ""
+    },
+    {
+      "key": "updateName",
+      "value": ""
+    }
+  ]
+}

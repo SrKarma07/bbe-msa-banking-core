@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_DB: proof-bank
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./BaseDatos.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d proof-bank"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  bbe-msa-bs-customer-management:
+    build:
+      context: ./bbe-msa-bs-customer-management
+      dockerfile: Dockerfile
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/proof-bank
+      SPRING_R2DBC_USERNAME: postgres
+      SPRING_R2DBC_PASSWORD: root
+      SPRING_R2DBC_INITIALIZATION_ENABLED: "true"
+      SPRING_SQL_INIT_MODE: "never"
+      LOGGING_LEVEL_COM_CUSTOMER: DEBUG
+    ports:
+      - "8091:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+
+  bbe-msa-bs-account-movement:
+    build:
+      context: ./bbe-msa-bs-account-movement
+      dockerfile: Dockerfile
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/proof-bank
+      SPRING_R2DBC_USERNAME: postgres
+      SPRING_R2DBC_PASSWORD: root
+      SPRING_R2DBC_INITIALIZATION_ENABLED: "true"
+      SPRING_SQL_INIT_MODE: "never"
+      LOGGING_LEVEL_COM_ACCOUNT: DEBUG
+    ports:
+      - "8090:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    driver: bridge

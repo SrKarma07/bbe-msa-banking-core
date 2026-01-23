@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: bbe-msa-bs-account-movement
+  r2dbc:
+    #url: r2dbc:postgresql://localhost:5432/proof-bank
+    username: postgres
+    password: root
+  sql:
+    init:
+      mode: never   # no usar JDBC init en un app reactivo
+  data:
+    r2dbc:
+      repositories:
+        enabled: true
+
+server:
+  port: 8090
+
+logging:
+  level:
+    root: INFO
+    org.springframework.r2dbc: INFO
+    io.r2dbc.postgresql: INFO
+    com.account: DEBUG
+
+# Swagger UI (springdoc)
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

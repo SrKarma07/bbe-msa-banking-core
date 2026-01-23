@@ -1,0 +1,539 @@
+openapi: 3.0.3
+info:
+  title: bbe-msa-bs-account-movement
+  version: 1.1.1
+  description: |
+    Microservice for managing accounts, transaction flows, and account status reports.
+
+    Notes:
+    - Monetary fields use decimal semantics. Clients should send values with up to 2 decimal places.
+    - Movement values must be positive; the effective sign is derived from 'type' (Deposito/Retiro).
+    - Reports use an inclusive date range: date >= dateFrom and date <= dateTo.
+
+servers:
+  - url: /api
+
+tags:
+  - name: Accounts
+    description: Account management
+  - name: Movements
+    description: Movement management (registration and query)
+  - name: Reports
+    description: Account statement reports by client and date range
+
+paths:
+  /accounts:
+    get:
+      tags: [Accounts]
+      operationId: listAccounts
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index.
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          description: Page size.
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: customerId
+          in: query
+          description: Filter by customer identifier (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Total-Count:
+              description: Total items
+              schema: { type: integer, minimum: 0 }
+            Link:
+              description: RFC 5988 links for paginated navigation (rel="next","prev")
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AccountResponse' }
+        "400":
+          description: Invalid query parameters (e.g., invalid UUID format)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountCreateRequest' }
+            examples:
+              ok:
+                value:
+                  accountNumber: "478758"
+                  type: "Ahorro"
+                  initialBalance: 2000.00
+                  state: true
+                  customerId: "ce069cbb-fd30-4f39-8ca6-903d0217d951"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountResponse' }
+        "409":
+          description: Conflict (duplicate account number)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        "422":
+          description: Customer not found or invalid (customerId)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /accounts/{number}:
+    get:
+      tags: [Accounts]
+      operationId: getAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountResponse' }
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+    put:
+      tags: [Accounts]
+      operationId: updateAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountUpdateRequest' }
+            examples:
+              patchLike:
+                value:
+                  state: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountResponse' }
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+    delete:
+      tags: [Accounts]
+      operationId: deleteAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountNumber'
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeleteResponse' }
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /movements:
+    get:
+      tags: [Movements]
+      operationId: listMovements
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page index.
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          description: Page size.
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: accountNumber
+          in: query
+          description: Filter by account number.
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: dateFrom
+          in: query
+          description: Start date (ISO-8601, yyyy-MM-dd). If provided, dateTo must also be provided.
+          schema: { type: string, format: date }
+        - name: dateTo
+          in: query
+          description: End date (ISO-8601, yyyy-MM-dd). If provided, dateFrom must also be provided.
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Total-Count:
+              description: Total items
+              schema: { type: integer, minimum: 0 }
+            Link:
+              description: RFC 5988 links for paginated navigation (rel="next","prev")
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MovementResponse' }
+        "400":
+          description: Invalid query parameters
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+    post:
+      tags: [Movements]
+      operationId: createMovement
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MovementCreateRequest' }
+            examples:
+              deposito:
+                value:
+                  accountNumber: "478758"
+                  date: "2025-02-10"
+                  type: "Deposito"
+                  value: 600.00
+                  detail: "Cash deposit"
+              retiro:
+                value:
+                  accountNumber: "478758"
+                  date: "2025-02-10"
+                  type: "Retiro"
+                  value: 575.00
+                  detail: "ATM withdrawal"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MovementResponse' }
+        "422":
+          description: Unavailable balance or business rule violation
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /movements/{id}:
+    get:
+      tags: [Movements]
+      operationId: getMovement
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MovementResponse' }
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+    put:
+      tags: [Movements]
+      operationId: updateMovement
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MovementUpdateRequest' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MovementResponse' }
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+    delete:
+      tags: [Movements]
+      operationId: deleteMovement
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeleteResponse' }
+        "404":
+          description: Not Found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /reports:
+    get:
+      tags: [Reports]
+      operationId: getAccountStatement
+      description: |
+        Account statement report by **client** and **date range**.
+
+        Inclusive range: movements with date >= dateFrom and <= dateTo are included.
+        Returns the client's accounts with their balance and the movement details
+        within the requested range.
+      parameters:
+        - name: customerId
+          in: query
+          required: true
+          description: Customer identifier (UUID).
+          schema: { type: string, format: uuid }
+        - name: dateFrom
+          in: query
+          required: true
+          description: Start date (ISO-8601, yyyy-MM-dd)
+          schema: { type: string, format: date }
+        - name: dateTo
+          in: query
+          required: true
+          description: End date (ISO-8601, yyyy-MM-dd)
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountStatementResponse' }
+        "400":
+          description: Invalid query parameters (e.g., invalid UUID format)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+components:
+  parameters:
+    AccountNumber:
+      name: number
+      in: path
+      required: true
+      description: Unique account number
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+
+    MovementId:
+      name: id
+      in: path
+      required: true
+      description: Unique movement identifier (UUID)
+      schema:
+        type: string
+        format: uuid
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Optional idempotency key to avoid duplicates on creation retries.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+  schemas:
+    AccountCreateRequest:
+      type: object
+      required: [accountNumber, type, initialBalance, state, customerId]
+      properties:
+        accountNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+        type:
+          type: string
+          description: "Ahorro/Corriente"
+          pattern: "^(Ahorro|Corriente)$"
+        initialBalance:
+          type: number
+          description: "Decimal representation. Use up to 2 decimal places."
+          minimum: 0
+          multipleOf: 0.01
+        state:
+          type: boolean
+        customerId:
+          type: string
+          format: uuid
+
+    AccountUpdateRequest:
+      type: object
+      description: "Optional fields; omitted fields remain unchanged."
+      properties:
+        type:
+          type: string
+          pattern: "^(Ahorro|Corriente)$"
+        state:
+          type: boolean
+
+    AccountResponse:
+      type: object
+      required: [accountNumber, type, state, balance, customerId]
+      properties:
+        accountNumber:
+          type: string
+        type:
+          type: string
+          description: "Ahorro/Corriente"
+        state:
+          type: boolean
+        balance:
+          type: number
+          description: "Current account balance (decimal)."
+          multipleOf: 0.01
+        customerId:
+          type: string
+          format: uuid
+
+    MovementCreateRequest:
+      type: object
+      required: [accountNumber, date, type, value]
+      properties:
+        accountNumber:
+          type: string
+          minLength: 1
+          maxLength: 64
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+          description: "Deposito/Retiro"
+          pattern: "^(Deposito|Retiro)$"
+        value:
+          type: number
+          description: "Positive amount. The effect (+/-) is derived from 'type'."
+          exclusiveMinimum: true
+          minimum: 0
+          multipleOf: 0.01
+        detail:
+          type: string
+          maxLength: 255
+          description: "Optional movement description."
+
+    MovementUpdateRequest:
+      type: object
+      description: "Movement update (generally for administrative fixes only)."
+      properties:
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+          pattern: "^(Deposito|Retiro)$"
+        value:
+          type: number
+          description: "Positive amount. The effect (+/-) is derived from 'type'."
+          exclusiveMinimum: true
+          minimum: 0
+          multipleOf: 0.01
+        detail:
+          type: string
+          maxLength: 255
+
+    DeleteResponse:
+      type: object
+      required: [ id, message, deletedAt ]
+      properties:
+        id:
+          type: string
+          description: Identifier of the deleted resource (account number or movement UUID)
+        message:
+          type: string
+          description: Human readable result message
+        deletedAt:
+          type: string
+          format: date-time
+          description: Deletion timestamp (UTC)
+
+    MovementResponse:
+      type: object
+      required: [id, accountNumber, date, type, value, balance]
+      properties:
+        id:
+          type: string
+          format: uuid
+        accountNumber:
+          type: string
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+          description: "Deposito/Retiro"
+        value:
+          type: number
+          description: "Recorded amount (positive). The effective sign is derived from 'type'."
+          multipleOf: 0.01
+        balance:
+          type: number
+          description: "Account balance after applying the movement (decimal)."
+          multipleOf: 0.01
+
+    AccountStatementResponse:
+      type: object
+      required: [customerId, dateFrom, dateTo, accounts]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        dateFrom:
+          type: string
+          format: date
+        dateTo:
+          type: string
+          format: date
+        accounts:
+          type: array
+          items:
+            type: object
+            required: [account, movements]
+            properties:
+              account:
+                $ref: '#/components/schemas/AccountResponse'
+              movements:
+                type: array
+                items: { $ref: '#/components/schemas/MovementResponse' }
+
+    Problem:
+      type: object
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer, format: int32 }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+      additionalProperties: true

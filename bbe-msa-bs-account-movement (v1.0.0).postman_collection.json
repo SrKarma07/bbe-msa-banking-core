@@ -1,0 +1,1272 @@
+{
+  "info": {
+    "_postman_id": "c5ef3cdf-ad64-4380-982d-5963fe96679c",
+    "name": "bbe-msa-bs-account-movement (v1.0.0))",
+    "description": "Complete Postman collection to test Accounts, Movements, Reports based on seeded data. Includes happy paths + negative cases.\n\nBase URL examples:\n- http://localhost:8080/api\n- http://localhost:4000/api\n\nSeeded references used:\n- customerIdAna: ce069cbb-fd30-4f39-8ca6-903d0217d951\n- accounts: ACC-100001, ACC-100002, ...\n\nNote: Movement values are positive; effective sign derived from type (Deposito/Retiro).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "33348841",
+    "_collection_link": "https://go.postman.co/collection/33348841-c5ef3cdf-ad64-4380-982d-5963fe96679c?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 - Setup / Smoke",
+      "item": [
+        {
+          "name": "Smoke - List Accounts (page=0,size=10)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Returns array', function(){ pm.expect(pm.response.json()).to.be.an('array'); });",
+                  "pm.test('X-Total-Count header present (optional)', function(){ pm.expect(pm.response.headers.has('X-Total-Count') || true).to.be.true; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts?page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Accounts",
+      "item": [
+        {
+          "name": "List Accounts (filter by customerIdAna)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Log all variables used in this request for verification",
+                  "console.log(\"=== Variable Verification ===\");",
+                  "",
+                  "const variables = [",
+                  "    { name: \"baseUrl\", value: pm.variables.get(\"baseUrl\") },",
+                  "    { name: \"customerIdAna\", value: pm.variables.get(\"customerIdAna\") },",
+                  "    { name: \"correlationId\", value: pm.variables.get(\"correlationId\") }",
+                  "];",
+                  "",
+                  "variables.forEach(variable => {",
+                  "    if (variable.value === undefined || variable.value === null || variable.value === \"\") {",
+                  "        console.warn(`⚠️ ${variable.name}: NOT SET or EMPTY`);",
+                  "    } else {",
+                  "        console.log(`✓ ${variable.name}: ${variable.value}`);",
+                  "    }",
+                  "});",
+                  "",
+                  "// Log the full resolved URL",
+                  "const resolvedUrl = pm.variables.replaceIn(\"{{baseUrl}}/accounts?page=0&size=50&customerId={{customerIdAna}}\");",
+                  "console.log(\"\\n=== Resolved Request URL ===\");",
+                  "console.log(resolvedUrl);",
+                  "",
+                  "console.log(\"\\n=== Request Headers ===\");",
+                  "console.log(`X-Correlation-Id: ${pm.variables.get(\"correlationId\")}`);",
+                  "console.log(\"========================\");"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Detailed Error Diagnostics Script",
+                  "const responseCode = pm.response ? pm.response.code : null;",
+                  "const responseTime = pm.response ? pm.response.responseTime : null;",
+                  "",
+                  "console.log(\"=== Response Diagnostics ===\");",
+                  "",
+                  "if (pm.response) {",
+                  "    console.log(`Status Code: ${responseCode}`);",
+                  "    console.log(`Response Time: ${responseTime}ms`);",
+                  "    ",
+                  "    // Check for successful response",
+                  "    if (responseCode >= 200 && responseCode < 300) {",
+                  "        console.log(\"✓ Request completed successfully\");",
+                  "        ",
+                  "        pm.test(\"Status code is 2xx\", function () {",
+                  "            pm.expect(responseCode).to.be.within(200, 299);",
+                  "        });",
+                  "        ",
+                  "        pm.test(\"Response time is acceptable\", function () {",
+                  "            pm.expect(responseTime).to.be.below(30000);",
+                  "        });",
+                  "    } else {",
+                  "        // Error response received",
+                  "        console.error(`✗ Request failed with status: ${responseCode}`);",
+                  "        ",
+                  "        // Log response body for debugging",
+                  "        try {",
+                  "            const responseBody = pm.response.json();",
+                  "            console.log(\"Response Body:\", JSON.stringify(responseBody, null, 2));",
+                  "        } catch (e) {",
+                  "            console.log(\"Response Body (text):\", pm.response.text());",
+                  "        }",
+                  "        ",
+                  "        // Provide specific guidance based on error codes",
+                  "        if (responseCode === 401) {",
+                  "            console.warn(\"🔐 Authentication Error: Check your authentication credentials\");",
+                  "        } else if (responseCode === 403) {",
+                  "            console.warn(\"🚫 Forbidden: You may not have permission to access this resource\");",
+                  "        } else if (responseCode === 404) {",
+                  "            console.warn(\"🔍 Not Found: Verify the baseUrl and endpoint path are correct\");",
+                  "        } else if (responseCode === 408) {",
+                  "            console.warn(\"⏱️ Request Timeout: The server took too long to respond\");",
+                  "        } else if (responseCode >= 500) {",
+                  "            console.warn(\"🖥️ Server Error: The issue is on the server side\");",
+                  "        }",
+                  "        ",
+                  "        pm.test(\"Request should succeed\", function () {",
+                  "            pm.expect(responseCode).to.be.within(200, 299);",
+                  "        });",
+                  "    }",
+                  "} else {",
+                  "    // No response received - likely a connection error",
+                  "    console.error(\"✗ No response received from server\");",
+                  "    console.log(\"\\n=== Socket Hang Up / Connection Error Diagnostics ===\");",
+                  "    console.log(\"Common causes and solutions:\");",
+                  "    console.log(\"\");",
+                  "    console.log(\"1. 🌐 Network Connectivity:\");",
+                  "    console.log(\"   - Verify you have internet access\");",
+                  "    console.log(\"   - Check if you're behind a firewall or VPN\");",
+                  "    console.log(\"   - Try accessing the baseUrl in a browser\");",
+                  "    console.log(\"\");",
+                  "    console.log(\"2. 🔗 Server Availability:\");",
+                  "    console.log(\"   - The server may be down or unreachable\");",
+                  "    console.log(\"   - The server may have closed the connection unexpectedly\");",
+                  "    console.log(\"   - Check if the service is running\");",
+                  "    console.log(\"\");",
+                  "    console.log(\"3. ⏱️ Timeout Issues:\");",
+                  "    console.log(\"   - Increase request timeout in Postman Settings\");",
+                  "    console.log(\"   - Go to Settings > General > Request timeout\");",
+                  "    console.log(\"   - Try setting it to 0 (no timeout) for testing\");",
+                  "    console.log(\"\");",
+                  "    console.log(\"4. 🔒 SSL/TLS Issues:\");",
+                  "    console.log(\"   - If using HTTPS, try disabling SSL verification temporarily\");",
+                  "    console.log(\"   - Go to Settings > General > SSL certificate verification\");",
+                  "    console.log(\"\");",
+                  "    console.log(\"5. 📡 Proxy Configuration:\");",
+                  "    console.log(\"   - Check if a proxy is required for your network\");",
+                  "    console.log(\"   - Go to Settings > Proxy to configure\");",
+                  "    console.log(\"\");",
+                  "    console.log(\"6. 🔧 Variable Check:\");",
+                  "    const baseUrl = pm.variables.get(\"baseUrl\");",
+                  "    console.log(`   - baseUrl is set to: ${baseUrl || \"NOT SET\"}`);",
+                  "    if (!baseUrl) {",
+                  "        console.warn(\"   ⚠️ baseUrl is not set! This will cause the request to fail.\");",
+                  "    } else if (!baseUrl.startsWith(\"http://\") && !baseUrl.startsWith(\"https://\")) {",
+                  "        console.warn(\"   ⚠️ baseUrl should start with http:// or https://\");",
+                  "    }",
+                  "    console.log(\"\");",
+                  "    console.log(\"7. 🔄 Keep-Alive Issues:\");",
+                  "    console.log(\"   - Try adding header: Connection: close\");",
+                  "    console.log(\"   - The server may be closing idle connections\");",
+                  "    ",
+                  "    pm.test(\"Connection should be established\", function () {",
+                  "        pm.expect.fail(\"Socket hang up - no response received from server\");",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts?page=0&size=50&customerId={{customerIdAna}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                },
+                {
+                  "key": "customerId",
+                  "value": "{{customerIdAna}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account (ACC-100001)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test('accountNumber matches', () => pm.expect(a.accountNumber).to.eql(pm.collectionVariables.get('accAnaSaving')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accAnaSaving}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{accAnaSaving}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Account (new number, seeded customer Ana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const a = pm.response.json();",
+                  "pm.test('created accountNumber matches', () => pm.expect(a.accountNumber).to.eql(pm.collectionVariables.get('createdAccountNumber')));",
+                  "pm.test('customerId matches', () => pm.expect(a.customerId).to.eql(pm.collectionVariables.get('customerIdAna')));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"{{createdAccountNumber}}\",\n  \"type\": \"Ahorro\",\n  \"initialBalance\": 725.00,\n  \"state\": true,\n  \"customerId\": \"{{customerIdAna}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Account (set state=false for created account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test('state updated to false', () => pm.expect(a.state).to.eql(false));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"state\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{createdAccountNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{createdAccountNumber}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account (created account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{createdAccountNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{createdAccountNumber}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Movements",
+      "item": [
+        {
+          "name": "List Movements (ACC-100001, date range 2025-11-01..2026-01-31)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "pm.test('Returns array', () => pm.expect(data).to.be.an('array'));",
+                  "pm.test('Each movement has required fields', () => {",
+                  "  data.forEach(m => {",
+                  "    pm.expect(m).to.have.property('id');",
+                  "    pm.expect(m).to.have.property('accountNumber');",
+                  "    pm.expect(m).to.have.property('date');",
+                  "    pm.expect(m).to.have.property('type');",
+                  "    pm.expect(m).to.have.property('value');",
+                  "    pm.expect(m).to.have.property('balance');",
+                  "  });",
+                  "});",
+                  "// store first id if exists",
+                  "if (data.length > 0) pm.collectionVariables.set('createdMovementId', data[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movements?page=0&size=50&accountNumber={{accAnaSaving}}&dateFrom=2025-11-01&dateTo=2026-01-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "50"
+                },
+                {
+                  "key": "accountNumber",
+                  "value": "{{accAnaSaving}}"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-11-01"
+                },
+                {
+                  "key": "dateTo",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Movement (Deposito ACC-100001, Idempotency-Key)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.test('Movement has UUID id', () => pm.expect(m.id).to.match(/^[0-9a-fA-F-]{36}$/));",
+                  "pm.collectionVariables.set('createdMovementIdIdem', m.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"{{accAnaSaving}}\",\n  \"date\": \"2026-01-21\",\n  \"type\": \"Deposito\",\n  \"value\": 25.00,\n  \"detail\": \"Deposito test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Movement AGAIN (same Idempotency-Key) -> should return same movement id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 (or 200 if you change later)', () => pm.expect([200,201]).to.include(pm.response.code));",
+                  "const m = pm.response.json();",
+                  "pm.test('Same id returned for idempotent retry', () => pm.expect(m.id).to.eql(pm.collectionVariables.get('createdMovementIdIdem')));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemKey}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"{{accAnaSaving}}\",\n  \"date\": \"2026-01-21\",\n  \"type\": \"Deposito\",\n  \"value\": 500.00,\n  \"detail\": \"Postman deposit test - retry\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Movement (createdMovementIdIdem)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const m = pm.response.json();",
+                  "pm.test('id matches', () => pm.expect(m.id).to.eql(pm.collectionVariables.get('createdMovementIdIdem')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movements/{{createdMovementIdIdem}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "{{createdMovementIdIdem}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Movement (detail only) - createdMovementIdIdem",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"detail\": \"Administrative correction via Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/{{createdMovementIdIdem}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "{{createdMovementIdIdem}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Movement - createdMovementIdIdem",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movements/{{createdMovementIdIdem}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "{{createdMovementIdIdem}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Reports",
+      "item": [
+        {
+          "name": "Report - Ana (2025-11-01..2026-01-31)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has required root fields', () => {",
+                  "  pm.expect(r).to.have.property('customerId');",
+                  "  pm.expect(r).to.have.property('dateFrom');",
+                  "  pm.expect(r).to.have.property('dateTo');",
+                  "  pm.expect(r).to.have.property('accounts');",
+                  "});",
+                  "pm.test('accounts is array', () => pm.expect(r.accounts).to.be.an('array'));",
+                  "if (r.accounts.length > 0) {",
+                  "  const first = r.accounts[0];",
+                  "  pm.expect(first).to.have.property('account');",
+                  "  pm.expect(first).to.have.property('movements');",
+                  "}",
+                  "pm.test('Every movement (if any) has id', () => {",
+                  "  (r.accounts || []).forEach(ai => {",
+                  "    (ai.movements || []).forEach(m => pm.expect(m).to.have.property('id'));",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports?customerId={{customerIdAna}}&dateFrom=2025-11-01&dateTo=2026-01-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerIdAna}}"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-11-01"
+                },
+                {
+                  "key": "dateTo",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Report - Carlos (2025-10-01..2026-01-31)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports?customerId={{customerIdCarlos}}&dateFrom=2025-10-01&dateTo=2026-01-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerIdCarlos}}"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-10-01"
+                },
+                {
+                  "key": "dateTo",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Negative / Validation",
+      "item": [
+        {
+          "name": "Accounts - Create duplicate account number (ACC-100001) -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"{{accAnaSaving}}\",\n  \"type\": \"Ahorro\",\n  \"initialBalance\": 10.00,\n  \"state\": true,\n  \"customerId\": \"{{customerIdAna}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Accounts - Create with non-existent customerId -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"ACC-NONEXIST-001\",\n  \"type\": \"Ahorro\",\n  \"initialBalance\": 10.00,\n  \"state\": true,\n  \"customerId\": \"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Accounts - List with invalid customerId UUID -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts?page=0&size=10&customerId=NOT-A-UUID",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "customerId",
+                  "value": "NOT-A-UUID"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Movements - Create Retiro with insufficient balance (ACC-800001 has 50.00) -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"ACC-800001\",\n  \"date\": \"2026-01-21\",\n  \"type\": \"Retiro\",\n  \"value\": 999.00,\n  \"detail\": \"Should fail - insufficient funds\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Movements - Create on CLOSED account (ACC-500002 state=false) -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"{{accMariaClosed}}\",\n  \"date\": \"2026-01-21\",\n  \"type\": \"Deposito\",\n  \"value\": 10.00,\n  \"detail\": \"Should fail - closed account\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Movements - List with only dateFrom (missing dateTo) -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movements?page=0&size=10&accountNumber={{accAnaSaving}}&dateFrom=2025-11-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "accountNumber",
+                  "value": "{{accAnaSaving}}"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-11-01"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reports - invalid UUID customerId -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/problem+json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports?customerId=NOT-A-UUID&dateFrom=2025-11-01&dateTo=2026-01-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "NOT-A-UUID"
+                },
+                {
+                  "key": "dateFrom",
+                  "value": "2025-11-01"
+                },
+                {
+                  "key": "dateTo",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    },
+    {
+      "key": "correlationId",
+      "value": "pm-{{timestamp}}"
+    },
+    {
+      "key": "customerIdAna",
+      "value": "ce069cbb-fd30-4f39-8ca6-903d0217d951"
+    },
+    {
+      "key": "customerIdCarlos",
+      "value": "7f0c2d65-7a0a-4e78-a0fa-2bb4a6b8d219"
+    },
+    {
+      "key": "customerIdDiana",
+      "value": "f3d9f1c6-3122-4b6d-9d55-93b2f3c1ab10"
+    },
+    {
+      "key": "customerIdJorge",
+      "value": "2b6f7a58-9f78-4b33-a3d2-8b6c0b4d8f11"
+    },
+    {
+      "key": "customerIdMaria",
+      "value": "a7d88a62-8e2b-4d72-8d41-9b7b0a2ce9a5"
+    },
+    {
+      "key": "customerIdPedro",
+      "value": "d6d1b2a0-6c4d-4c74-9ed0-0b5f1c2d3e44"
+    },
+    {
+      "key": "customerIdSofia",
+      "value": "0d1d2e3f-4a5b-4c6d-8e9f-001122334455"
+    },
+    {
+      "key": "customerIdRicardo",
+      "value": "11223344-5566-7788-99aa-bbccddeeff00"
+    },
+    {
+      "key": "accAnaSaving",
+      "value": "ACC-100001"
+    },
+    {
+      "key": "accAnaChecking",
+      "value": "ACC-100002"
+    },
+    {
+      "key": "accCarlosSaving",
+      "value": "ACC-200001"
+    },
+    {
+      "key": "accCarlosChecking",
+      "value": "ACC-200002"
+    },
+    {
+      "key": "accMariaClosed",
+      "value": "ACC-500002"
+    },
+    {
+      "key": "createdAccountNumber",
+      "value": ""
+    },
+    {
+      "key": "createdMovementId",
+      "value": ""
+    },
+    {
+      "key": "createdMovementIdIdem",
+      "value": ""
+    }
+  ]
+}

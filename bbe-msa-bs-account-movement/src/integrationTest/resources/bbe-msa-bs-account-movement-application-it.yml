@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: bbe-msa-bs-account-movement
+  r2dbc:
+    username: postgres
+    password: postgres
+  sql:
+    init:
+      mode: never
+logging:
+  level:
+    org.springframework: WARN

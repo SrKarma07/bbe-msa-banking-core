@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: bbe-msa-bs-customer-management
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/bankdb
+    username: bankuser
+    password: bankpass
+    initialization:
+      enabled: true
+
+  sql:
+    init:
+      mode: never
+server:
+  port: 8091
+
+logging:
+  level:
+    root: INFO
+    com.customer: DEBUG
