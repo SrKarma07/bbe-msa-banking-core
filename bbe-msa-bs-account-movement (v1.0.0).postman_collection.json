@@ -1193,6 +1193,670 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "05 - Transfers",
+      "item": [
+        {
+          "name": "Create Transfer (ACC-100001 -> ACC-200001, Idempotency-Key)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test('Has debit and credit movements', () => {",
+                  "  pm.expect(r).to.have.property('debitMovement');",
+                  "  pm.expect(r).to.have.property('creditMovement');",
+                  "});",
+                  "pm.test('Debit movement matches source account', () => {",
+                  "  pm.expect(r.debitMovement.accountNumber).to.eql(pm.collectionVariables.get('transferSourceAccount'));",
+                  "  pm.expect(r.debitMovement.type).to.eql('Retiro');",
+                  "});",
+                  "pm.test('Credit movement matches destination account', () => {",
+                  "  pm.expect(r.creditMovement.accountNumber).to.eql(pm.collectionVariables.get('transferDestinationAccount'));",
+                  "  pm.expect(r.creditMovement.type).to.eql('Deposito');",
+                  "});",
+                  "pm.test('Transfer amount is preserved in both movements', () => {",
+                  "  const amount = Number(pm.collectionVariables.get('transferAmount'));",
+                  "  pm.expect(Number(r.debitMovement.value)).to.eql(amount);",
+                  "  pm.expect(Number(r.creditMovement.value)).to.eql(amount);",
+                  "});",
+                  "pm.test('Movement ids are different UUIDs', () => {",
+                  "  pm.expect(r.debitMovement.id).to.match(/^[0-9a-fA-F-]{36}$/);",
+                  "  pm.expect(r.creditMovement.id).to.match(/^[0-9a-fA-F-]{36}$/);",
+                  "  pm.expect(r.debitMovement.id).to.not.eql(r.creditMovement.id);",
+                  "});",
+                  "pm.collectionVariables.set('createdTransferDebitId', r.debitMovement.id);",
+                  "pm.collectionVariables.set('createdTransferCreditId', r.creditMovement.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{transferIdemKey}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": {{transferAmount}},\n  \"detail\": \"Transfer test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Movements Source (verify transfer debit)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "pm.test('Returns array', () => pm.expect(data).to.be.an('array'));",
+                  "pm.test('Contains transfer debit movement', () => {",
+                  "  const found = data.find(m => m.id === pm.collectionVariables.get('createdTransferDebitId'));",
+                  "  pm.expect(found).to.exist;",
+                  "  pm.expect(found.type).to.eql('Retiro');",
+                  "  pm.expect(Number(found.value)).to.eql(Number(pm.collectionVariables.get('transferAmount')));",
+                  "  pm.expect(found.detail).to.include('Transfer to ' + pm.collectionVariables.get('transferDestinationAccount'));",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Movements Destination (verify transfer credit)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "pm.test('Returns array', () => pm.expect(data).to.be.an('array'));",
+                  "pm.test('Contains transfer credit movement', () => {",
+                  "  const found = data.find(m => m.id === pm.collectionVariables.get('createdTransferCreditId'));",
+                  "  pm.expect(found).to.exist;",
+                  "  pm.expect(found.type).to.eql('Deposito');",
+                  "  pm.expect(Number(found.value)).to.eql(Number(pm.collectionVariables.get('transferAmount')));",
+                  "  pm.expect(found.detail).to.include('Transfer from ' + pm.collectionVariables.get('transferSourceAccount'));",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Same Idempotency-Key with different payload -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));",
+                  "const p = pm.response.json();",
+                  "pm.test('Problem errorCode is INVALID_REQUEST', () => pm.expect(p.errorCode).to.eql('INVALID_REQUEST'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{transferIdemKey}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 30.00,\n  \"detail\": \"Transfer test - changed payload\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Insufficient balance (ACC-800001 -> ACC-200001) -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"ACC-800001\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 999.0,\n  \"detail\": \"Should fail - insufficient funds\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Source CLOSED account (ACC-500002 -> ACC-200001) -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{accMariaClosed}}\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 10.0,\n  \"detail\": \"Should fail - source closed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Destination CLOSED account (ACC-100001 -> ACC-500002) -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{accMariaClosed}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 10.0,\n  \"detail\": \"Should fail - destination closed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Source account not found -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"ACC-NOT-FOUND-001\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 10.0,\n  \"detail\": \"Should fail - source not found\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Destination account not found -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"ACC-NOT-FOUND-002\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 10.0,\n  \"detail\": \"Should fail - destination not found\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Same source and destination -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{transferSourceAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 10.0,\n  \"detail\": \"Should fail - same account\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Value zero -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": 0,\n  \"detail\": \"Should fail - zero value\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Value negative -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"date\": \"{{transferDate}}\",\n  \"value\": -10.0,\n  \"detail\": \"Should fail - negative value\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfers - Missing date -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountNumber\": \"{{transferSourceAccount}}\",\n  \"destinationAccountNumber\": \"{{transferDestinationAccount}}\",\n  \"value\": 10.00,\n  \"detail\": \"Should fail - missing date\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movements/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movements",
+                "transfers"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -1267,6 +1931,39 @@
     {
       "key": "createdMovementIdIdem",
       "value": ""
+    },
+    {
+      "key": "createdTransferDebitId",
+      "value": ""
+    },
+    {
+      "key": "createdTransferCreditId",
+      "value": ""
+    },
+    {
+      "key": "transferIdemKey",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "transferAmount",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "transferDate",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "transferDestinationAccount",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "transferSourceAccount",
+      "value": "",
+      "type": "default"
     }
   ]
 }

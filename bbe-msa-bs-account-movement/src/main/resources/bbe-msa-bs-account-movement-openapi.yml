@@ -239,6 +239,37 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
 
+  /movements/transfers:
+    post:
+      tags: [Movements]
+      operationId: createTransfer
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransferCreateRequest' }
+            examples:
+              transferencia:
+                value:
+                  sourceAccountNumber: "ACC-100001"
+                  destinationAccountNumber: "ACC-200001"
+                  date: "2025-02-10"
+                  value: 150.00
+                  detail: "Monthly transfer"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransferResponse' }
+        "422":
+          description: Unavailable balance or business rule violation
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
   /movements/{id}:
     get:
       tags: [Movements]
@@ -463,6 +494,41 @@ components:
         detail:
           type: string
           maxLength: 255
+
+    TransferCreateRequest:
+      type: object
+      required: [sourceAccountNumber, destinationAccountNumber, date, value]
+      properties:
+        sourceAccountNumber:
+          type: string
+          minLength: 1
+          maxLength: 64
+        destinationAccountNumber:
+          type: string
+          minLength: 1
+          maxLength: 64
+        date:
+          type: string
+          format: date
+        value:
+          type: number
+          description: "Positive amount to transfer."
+          exclusiveMinimum: true
+          minimum: 0
+          multipleOf: 0.01
+        detail:
+          type: string
+          maxLength: 255
+          description: "Optional transfer description."
+
+    TransferResponse:
+      type: object
+      required: [debitMovement, creditMovement]
+      properties:
+        debitMovement:
+          $ref: '#/components/schemas/MovementResponse'
+        creditMovement:
+          $ref: '#/components/schemas/MovementResponse'
 
     DeleteResponse:
       type: object

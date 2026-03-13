@@ -6,6 +6,8 @@ import com.business.banking.services.infrastructure.input.adapter.rest.dto.Delet
 import com.business.banking.services.infrastructure.input.adapter.rest.dto.MovementCreateRequest;
 import com.business.banking.services.infrastructure.input.adapter.rest.dto.MovementResponse;
 import com.business.banking.services.infrastructure.input.adapter.rest.dto.MovementUpdateRequest;
+import com.business.banking.services.infrastructure.input.adapter.rest.dto.TransferCreateRequest;
+import com.business.banking.services.infrastructure.input.adapter.rest.dto.TransferResponse;
 import com.business.banking.services.infrastructure.input.adapter.rest.mapper.MovementControllerMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +39,19 @@ public class MovementController implements MovementsApi {
         return movementCreateRequest
                 .map(mapper::toDomain)
                 .flatMap(req -> service.create(req, idempotencyKey))
+                .map(mapper::toResponse)
+                .map(r -> ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(r));
+    }
+
+    @Override
+    public Mono<ResponseEntity<TransferResponse>> createTransfer(
+            Mono<TransferCreateRequest> transferCreateRequest,
+            String idempotencyKey,
+            ServerWebExchange exchange
+    ) {
+        return transferCreateRequest
+                .map(mapper::toDomain)
+                .flatMap(req -> service.transfer(req, idempotencyKey))
                 .map(mapper::toResponse)
                 .map(r -> ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(r));
     }

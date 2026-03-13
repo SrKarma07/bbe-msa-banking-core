@@ -20,8 +20,7 @@ The project follows an **OpenAPI-first** approach (contracts stored in `src/main
 - [6. Postman Collections](#6-postman-collections)
 - [7. Local Development (Without Docker)](#7-local-development-without-docker)
 - [8. Testing](#8-testing)
-- [9. Troubleshooting](#9-troubleshooting)
-- [10. Author](#10-author)
+- [9. Author](#9-author)
 
 ---
 
